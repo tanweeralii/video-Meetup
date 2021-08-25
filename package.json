@@ -1,0 +1,27 @@
+{
+  "name": "video-meetup",
+  "version": "1.0.0",
+  "description": "Web application that makes it easy to group up with people and do video conferencing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanweeralii/video-Meetup.git"
+  },
+  "author": "Tanweer Ali (tanweerali908@gmail.com)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tanweeralii/video-Meetup/issues"
+  },
+  "homepage": "https://github.com/tanweeralii/video-Meetup#readme",
+  "dependencies": {
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "nodemon": "^2.0.12",
+    "peer": "^0.6.1",
+    "socket.io": "^4.1.3",
+    "uuid": "^8.3.2"
+  }
+}
