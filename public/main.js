@@ -42,10 +42,8 @@ Object.keys(ifaces).forEach(function (ifname) {
 
     if (alias >= 1) {
       console.log("Multiple ipv4 addreses were found ... ");
-      // this single interface has multiple ipv4 addresses
       console.log(ifname + ":" + alias, "https://" + iface.address + ":8443");
     } else {
-      // this interface has only one ipv4 adress
       console.log(ifname, "https://" + iface.address + ":8443");
     }
 
@@ -53,17 +51,14 @@ Object.keys(ifaces).forEach(function (ifname) {
   });
 });
 
-// Allow access from all the devices of the network (as long as connections are allowed by the firewall)
 var LANAccess = "0.0.0.0";
 // For http
 httpServer.listen(8080, LANAccess);
 // For https
 httpsServer.listen(8443, LANAccess);
 
-// Serve the index.html file as content of the / route
 app.get("/", function (req, res) {
   res.sendFile(path.join(__dirname + "/index.html"));
 });
 
-// Expose the js resources as "resources"
-app.use("/resources", express.static("./source"));
+app.use("/resources", express.static("./src"));
