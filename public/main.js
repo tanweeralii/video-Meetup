@@ -1,64 +1,33 @@
-var fs = require("fs");
-var http = require("http");
-var https = require("https");
-var path = require("path");
-var os = require("os");
-var ifaces = os.networkInterfaces();
+const express = require("express");
+const app = express();
+const server = require("http").Server(app);
+const { v4: uuidv4 } = require("uuid");
+app.set("view engine", "ejs");
+const io = require("socket.io")(server, {
+  cors: {
+    origin: '*'
+  }
+});
+const { ExpressPeerServer } = require("peer");
 
-var privateKey = fs.readFileSync("./../security/cert.key", "utf8");
-var certificate = fs.readFileSync("./../security/cert.pem", "utf8");
+app.use(express.static("public"));
 
-var credentials = { key: privateKey, cert: certificate };
-var express = require("express");
-var app = express();
+app.get("/", (req, res) => {
+  res.redirect(`/${uuidv4()}`);
+});
 
-var httpServer = http.createServer(app);
-var httpsServer = https.createServer(credentials, app);
+app.get("/:room", (req, res) => {
+  res.render("room", { roomId: req.params.room });
+});
 
-Object.keys(ifaces).forEach(function (ifname) {
-  var alias = 0;
-
-  ifaces[ifname].forEach(function (iface) {
-    if ("IPv4" !== iface.family || iface.internal !== false) {
-      // skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
-      return;
-    }
-
-    console.log("");
-    console.log("Welcome to the Chat Sandbox");
-    console.log("");
-    console.log(
-      "Test the chat interface from this device at : ",
-      "https://localhost:8443"
-    );
-    console.log("");
-    console.log(
-      "And access the chat sandbox from another device through LAN using any of the IPS:"
-    );
-    console.log(
-      "Important: Node.js needs to accept inbound connections through the Host Firewall"
-    );
-    console.log("");
-
-    if (alias >= 1) {
-      console.log("Multiple ipv4 addreses were found ... ");
-      console.log(ifname + ":" + alias, "https://" + iface.address + ":8443");
-    } else {
-      console.log(ifname, "https://" + iface.address + ":8443");
-    }
-
-    ++alias;
+io.on("connection", (socket) => {
+  socket.on("join-room", (roomId, userId, userName) => {
+    socket.join(roomId);
+    socket.to(roomId).broadcast.emit("user-connected", userId);
+    socket.on("message", (message) => {
+      io.to(roomId).emit("createMessage", message, userName);
+    });
   });
 });
 
-var LANAccess = "0.0.0.0";
-// For http
-httpServer.listen(8080, LANAccess);
-// For https
-httpsServer.listen(8443, LANAccess);
-
-app.get("/", function (req, res) {
-  res.sendFile(path.join(__dirname + "/index.html"));
-});
-
-app.use("/resources", express.static("./src"));
+server.listen(3000);

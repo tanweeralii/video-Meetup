@@ -1,10 +1,27 @@
-document.addEventListener(
-  "DOMContentLoaded",
-  function (event) {
-    var peer_id;
-    var username;
-    var conn;
-    var peer = new Peer({
+const socket = io("/");
+const videoGrid = document.getElementById("video-grid");
+const myVideo = document.createElement("video");
+const showChat = document.querySelector("#showChat");
+const backBtn = document.querySelector(".header__back");
+myVideo.muted = true;
+
+backBtn.addEventListener("click", () => {
+  document.querySelector(".main__left").style.display = "flex";
+  document.querySelector(".main__left").style.flex = "1";
+  document.querySelector(".main__right").style.display = "none";
+  document.querySelector(".header__back").style.display = "none";
+});
+
+showChat.addEventListener("click", () => {
+  document.querySelector(".main__right").style.display = "flex";
+  document.querySelector(".main__right").style.flex = "1";
+  document.querySelector(".main__left").style.display = "none";
+  document.querySelector(".header__back").style.display = "block";
+});
+
+const user = prompt("Enter your name");
+
+var peer = new Peer({
     host: "localhost",
     port: 9000,
     path: "/peerjs",
@@ -19,146 +36,116 @@ document.addEventListener(
         },
         ],
     },
-    });
-    peer.on('open', function () {
-        document.getElementById("peer-id-label").innerHTML = peer.id;
-    });
+});
 
-    peer.on('connection', function (connection) {
-        conn = connection;
-        peer_id = connection.peer;
+let myVideoStream;
+navigator.mediaDevices
+  .getUserMedia({
+    audio: true,
+    video: true,
+  })
+  .then((stream) => {
+    myVideoStream = stream;
+    addVideoStream(myVideo, stream);
 
-        
-        conn.on('data', handleMessage);
-
-    
-        document.getElementById("peer_id").className += " hidden";
-        document.getElementById("peer_id").value = peer_id;
-        document.getElementById("connected_peer").innerHTML = connection.metadata.username;
-    });
-
-    peer.on('error', function(err){
-        alert("An error ocurred with peer: " + err);
-        console.error(err);
+    peer.on("call", (call) => {
+      call.answer(stream);
+      const video = document.createElement("video");
+      call.on("stream", (userVideoStream) => {
+        addVideoStream(video, userVideoStream);
+      });
     });
 
-    
-    peer.on('call', function (call) {
-        var acceptsCall = confirm("Videocall incoming, do you want to accept it ?");
-
-        if(acceptsCall){
-            
-            call.answer(window.localStream);
-
-           
-            call.on('stream', function (stream) {
-                
-                window.peer_stream = stream;
-               
-                onReceiveStream(stream, 'peer-camera');
-            });
-
-            
-            call.on('close', function(){
-                alert("The videocall has finished");
-            });
-
-            
-        }else{
-            console.log("Call denied !");
-        }
+    socket.on("user-connected", (userId) => {
+      connectToNewUser(userId, stream);
     });
-    function requestLocalVideo(callbacks) {
-        
-        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+  });
 
-        
-        navigator.getUserMedia({ audio: true, video: true }, callbacks.success , callbacks.error);
-    }
-    function onReceiveStream(stream, element_id) {
-        
-        var video = document.getElementById(element_id);
-        
-        video.src = window.URL.createObjectURL(stream);
+const connectToNewUser = (userId, stream) => {
+  const call = peer.call(userId, stream);
+  const video = document.createElement("video");
+  call.on("stream", (userVideoStream) => {
+    addVideoStream(video, userVideoStream);
+  });
+};
 
-        
-        window.peer_stream = stream;
-    }
-    function handleMessage(data) {
-        var orientation = "text-left";
+peer.on("open", (id) => {
+  socket.emit("join-room", ROOM_ID, id, user);
+});
 
-        
-        if(data.from == username){
-            orientation = "text-right"
-        }
+const addVideoStream = (video, stream) => {
+  video.srcObject = stream;
+  video.addEventListener("loadedmetadata", () => {
+    video.play();
+    videoGrid.append(video);
+  });
+};
 
-        var messageHTML =  '<a href="javascript:void(0);" class="list-group-item' + orientation + '">';
-                messageHTML += '<h4 class="list-group-item-heading">'+ data.from +'</h4>';
-                messageHTML += '<p class="list-group-item-text">'+ data.text +'</p>';
-            messageHTML += '</a>';
+let text = document.querySelector("#chat_message");
+let send = document.getElementById("send");
+let messages = document.querySelector(".messages");
 
-        document.getElementById("messages").innerHTML += messageHTML;
-    }
-    document.getElementById("send-message").addEventListener("click", function(){
-       
-        var text = document.getElementById("message").value;
+send.addEventListener("click", (e) => {
+  if (text.value.length !== 0) {
+    socket.emit("message", text.value);
+    text.value = "";
+  }
+});
 
-        
-        var data = {
-            from: username, 
-            text: text 
-        };
+text.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && text.value.length !== 0) {
+    socket.emit("message", text.value);
+    text.value = "";
+  }
+});
 
-        
-        conn.send(data);
+const inviteButton = document.querySelector("#inviteButton");
+const muteButton = document.querySelector("#muteButton");
+const stopVideo = document.querySelector("#stopVideo");
+muteButton.addEventListener("click", () => {
+  const enabled = myVideoStream.getAudioTracks()[0].enabled;
+  if (enabled) {
+    myVideoStream.getAudioTracks()[0].enabled = false;
+    html = `<i class="fas fa-microphone-slash"></i>`;
+    muteButton.classList.toggle("background__red");
+    muteButton.innerHTML = html;
+  } else {
+    myVideoStream.getAudioTracks()[0].enabled = true;
+    html = `<i class="fas fa-microphone"></i>`;
+    muteButton.classList.toggle("background__red");
+    muteButton.innerHTML = html;
+  }
+});
 
-        
-        handleMessage(data);
+stopVideo.addEventListener("click", () => {
+  const enabled = myVideoStream.getVideoTracks()[0].enabled;
+  if (enabled) {
+    myVideoStream.getVideoTracks()[0].enabled = false;
+    html = `<i class="fas fa-video-slash"></i>`;
+    stopVideo.classList.toggle("background__red");
+    stopVideo.innerHTML = html;
+  } else {
+    myVideoStream.getVideoTracks()[0].enabled = true;
+    html = `<i class="fas fa-video"></i>`;
+    stopVideo.classList.toggle("background__red");
+    stopVideo.innerHTML = html;
+  }
+});
 
-        document.getElementById("message").value = "";
-    }, false);
-    document.getElementById("call").addEventListener("click", function(){
-        console.log('Calling to ' + peer_id);
-        console.log(peer);
+inviteButton.addEventListener("click", (e) => {
+  prompt(
+    "Copy this link and send it to people you want to meet with",
+    window.location.href
+  );
+});
 
-        var call = peer.call(peer_id, window.localStream);
-
-        call.on('stream', function (stream) {
-            window.peer_stream = stream;
-
-            onReceiveStream(stream, 'peer-camera');
-        });
-    }, false);
-    document.getElementById("connect-to-peer-btn").addEventListener("click", function(){
-        username = document.getElementById("name").value;
-        peer_id = document.getElementById("peer_id").value;
-        
-        if (peer_id) {
-            conn = peer.connect(peer_id, {
-                metadata: {
-                    'username': username
-                }
-            });
-            
-            conn.on('data', handleMessage);
-        }else{
-            alert("You need to provide a peer to connect with !");
-            return false;
-        }
-
-        document.getElementById("chat").className = "";
-        document.getElementById("connection-form").className += " hidden";
-    }, false);
-    requestLocalVideo({
-        success: function(stream){
-            window.localStream = stream;
-            onReceiveStream(stream, 'my-camera');
-        },
-        error: function(err){
-            alert("Cannot get access to your camera and video !");
-            console.error(err);
-        }
-    });
-  },
-  false
-);
+socket.on("createMessage", (message, userName) => {
+  messages.innerHTML =
+    messages.innerHTML +
+    `<div class="message">
+        <b><i class="far fa-user-circle"></i> <span> ${
+          userName === user ? "me" : userName
+        }</span> </b>
+        <span>${message}</span>
+    </div>`;
+});
