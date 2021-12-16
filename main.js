@@ -9,7 +9,7 @@ const io = require("socket.io")(server, {
   }
 });
 
-app.use(express.static("public"));
+app.use(express.static("views"));
 
 app.get("/", (req, res) => {
   res.redirect(`/${uuidv4()}`);
