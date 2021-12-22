@@ -5,11 +5,16 @@ const { v4: uuidv4 } = require("uuid");
 app.set("view engine", "ejs");
 const io = require("socket.io")(server, {
   cors: {
-    origin: '*'
-  }
+    origin: "*",
+  },
+});
+const { ExpressPeerServer } = require("peer");
+const peerServer = ExpressPeerServer(server, {
+  debug: true,
 });
 
-app.use(express.static("views"));
+app.use("/peerjs", peerServer);
+app.use(express.static("public"));
 
 app.get("/", (req, res) => {
   res.redirect(`/${uuidv4()}`);
@@ -29,4 +34,4 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(3000);
+server.listen(process.env.PORT || 3030);
